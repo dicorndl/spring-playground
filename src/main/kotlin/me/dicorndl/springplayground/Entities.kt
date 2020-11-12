@@ -11,11 +11,10 @@ class Article(
     var title: String,
     var headline: String,
     var content: String,
-    @ManyToOne var Author: User,
+    @ManyToOne var author: User,
     var slug: String = title.toSlug(),
     var addedAt: LocalDateTime = LocalDateTime.now(),
     @Id @GeneratedValue var id: Long? = null)
-
 
 @Entity
 class User(
