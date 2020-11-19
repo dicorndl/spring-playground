@@ -5,7 +5,6 @@ on: [push]
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v2
@@ -21,24 +20,6 @@ jobs:
           restore-keys: ${{ runner.os }}-gradle
       - name: Build with Gradle
         run: ./gradlew clean build
-      - name: Upload package
-        uses: actions/upload-artifact@v2
-        with:
-          name: package
-          path: build/libs
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download package
-        uses: actions/download-artifact@v2
-        with:
-          name: package
-          path: build
-      - name: Zip package bundle
-        run: |
-          zip -r ./$GITHUB_SHA.zip ./build/*
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
@@ -46,8 +27,27 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
           mask-aws-account-id: true
-      - name: Push package to S3
-        run: aws s3 cp $GITHUB_SHA.zip s3://${{ secrets.AWS_S3_BUCKET }}
+      - name: Make bundle
+        run: |
+          mkdir -p bundle
+          cp scripts/*.sh bundle/
+          cp appspec.yml bundle/
+          cp build/libs/*.jar bundle/
+          cd bundle && zip -r $GITHUB_SHA.zip *
+      - name: Push bundle to S3
+        run: aws s3 cp ./bundle/$GITHUB_SHA.zip s3://${{ secrets.AWS_S3_BUCKET }}
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+          mask-aws-account-id: true
       - name: Deploy package
         run: |
           aws deploy create-deployment \
