@@ -7,7 +7,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout Repository
         uses: actions/checkout@v2
       - name: Set up JDK 11
         uses: actions/setup-java@v1
@@ -36,6 +36,9 @@ jobs:
         with:
           name: package
           path: build
+      - name: Zip package bundle
+        run: |
+          zip -r ./$GITHUB_SHA.zip ./build/*
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
@@ -44,7 +47,7 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
           mask-aws-account-id: true
       - name: Push package to S3
-        run: aws s3 sync ./build s3://${{ secrets.AWS_S3_BUCKET }}
+        run: aws s3 cp $GITHUB_SHA.zip s3://${{ secrets.AWS_S3_BUCKET }}
       - name: Deploy package
         run: |
           aws deploy create-deployment \
@@ -52,4 +55,4 @@ jobs:
           --deployment-config-name CodeDeployDefault.OneAtATime \
           --deployment-group-name dicorndl-spring-playground-group \
           --file-exists-behavior OVERWRITE \
-          --s3-location bucket=${{ secrets.AWS_S3_BUCKET }},bundleType=zip,key=package.zip
+          --s3-location bucket=${{ secrets.AWS_S3_BUCKET }},bundleType=zip,key=$GITHUB_SHA.zip
